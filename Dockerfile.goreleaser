@@ -6,7 +6,7 @@
 # =============================================================================
 
 ARG ALPINE_IMAGE=alpine:3.21
-ARG POSTGRES_IMAGE=postgres:18-alpine
+ARG POSTGRES_IMAGE=postgres:18.4-alpine
 
 FROM ${POSTGRES_IMAGE} AS pg-client
 

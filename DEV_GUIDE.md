@@ -234,14 +234,39 @@ git add ent/       # 生成的文件也要提交
 
 ### 坑 11：PR 提交前检查清单
 
-提交 PR 前务必本地验证：
+提交 PR 前务必本地验证。提交时不要使用 `git add -A` 盲提交，必须按文件精确暂存，并在提交前复查 `git diff --cached`，确认没有 `.env`、密钥、证书私钥、运行时数据或本地 Agent 目录。
 
+通用检查：
+
+- [ ] `git diff --check` 通过，无空白错误
+- [ ] `git diff --cached` 已人工复查
+- [ ] 未提交 `.env`、`config.yaml`、token、password、OAuth secret、私钥、证书私钥、数据库数据目录
+- [ ] 不提交 `.hermes/` 等本地 Agent 工作目录，除非该目录是明确设计好的项目资产
+
+Go 后端变更：
+
+- [ ] 提交前先执行格式化：`cd backend && gofmt -w <changed-go-files>`
 - [ ] `go test -tags=unit ./...` 通过
 - [ ] `go test -tags=integration ./...` 通过
+- [ ] `go vet ./...` 通过
 - [ ] `golangci-lint run ./...` 无新增问题
-- [ ] `pnpm-lock.yaml` 已同步（如果改了 package.json）
 - [ ] 所有 test stub 补全新接口方法（如果改了 interface）
 - [ ] Ent 生成的代码已提交（如果改了 schema）
+
+前端变更：
+
+- [ ] 提交前先执行格式化/修复：`cd frontend && pnpm lint`
+- [ ] `cd frontend && pnpm lint:check` 通过
+- [ ] `cd frontend && pnpm typecheck` 通过
+- [ ] `cd frontend && pnpm build` 通过
+- [ ] `pnpm-lock.yaml` 已同步（如果改了 `package.json`）
+
+Docker / Compose / Shell 变更：
+
+- [ ] Shell 脚本执行 `bash -n <changed-script.sh>` 通过
+- [ ] Shell 脚本权限使用 755，避免提交 group-writable 权限
+- [ ] Compose 文件执行 `docker compose -f <compose-file> config` 通过
+- [ ] 如果改了 Dockerfile、基础镜像、公开服务或有状态服务，构建后执行镜像漏洞扫描并记录 Critical/High 结果
 
 ## 五、常用命令速查
 

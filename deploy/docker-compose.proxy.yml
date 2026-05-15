@@ -1,0 +1,271 @@
+# =============================================================================
+# Sub2API Docker Compose - /opt/proxy/sub2api local build deployment
+# =============================================================================
+# Purpose:
+#   Build Sub2API from the current local source tree and deploy it with all
+#   mutable state persisted under /opt/proxy/sub2api, including .env,
+#   app config.yaml/.installed/logs, PostgreSQL data, Redis data, and an
+#   externally editable Nginx reverse proxy under /opt/proxy/nginx for later
+#   SSL certificate configuration.
+#
+# Recommended entrypoint:
+#   ./deploy/redeploy-proxy.sh
+#
+# Manual usage:
+#   export DEPLOY_ROOT=/opt/proxy/sub2api
+#   export NGINX_ROOT=/opt/proxy/nginx
+#   docker compose --env-file "$DEPLOY_ROOT/.env" -f deploy/docker-compose.proxy.yml -p sub2api up -d --build
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # Sub2API Application - built from local source
+  # ===========================================================================
+  sub2api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${BUILD_VERSION:-}
+        COMMIT: ${BUILD_COMMIT:-local}
+        DATE: ${BUILD_DATE:-}
+    image: ${SUB2API_IMAGE:-sub2api:build-server}
+    container_name: sub2api
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 100000
+        hard: 100000
+    ports:
+      - "${BIND_HOST:-127.0.0.1}:${SERVER_PORT:-8080}:8080"
+    volumes:
+      # Persist application config.yaml, .installed, logs, and runtime files
+      # on the host. AUTO_SETUP writes config.yaml to /app/data/config.yaml,
+      # which becomes ${DEPLOY_ROOT}/data/config.yaml outside the container.
+      - ${DEPLOY_ROOT:-/opt/proxy/sub2api}/data:/app/data
+    env_file:
+      # Persist deployment/env configuration outside the container.
+      - ${ENV_FILE:-${DEPLOY_ROOT:-/opt/proxy/sub2api}/.env}
+    environment:
+      # Auto setup
+      - AUTO_SETUP=true
+
+      # Server configuration
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+      - SERVER_MODE=${SERVER_MODE:-release}
+      - RUN_MODE=${RUN_MODE:-standard}
+      - DATA_DIR=/app/data
+
+      # PostgreSQL connection inside the Compose network
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DATABASE_USER=${POSTGRES_USER:-sub2api}
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      - DATABASE_DBNAME=${POSTGRES_DB:-sub2api}
+      - DATABASE_SSLMODE=disable
+      - DATABASE_MAX_OPEN_CONNS=${DATABASE_MAX_OPEN_CONNS:-50}
+      - DATABASE_MAX_IDLE_CONNS=${DATABASE_MAX_IDLE_CONNS:-10}
+      - DATABASE_CONN_MAX_LIFETIME_MINUTES=${DATABASE_CONN_MAX_LIFETIME_MINUTES:-30}
+      - DATABASE_CONN_MAX_IDLE_TIME_MINUTES=${DATABASE_CONN_MAX_IDLE_TIME_MINUTES:-5}
+
+      # Redis connection inside the Compose network
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - REDIS_DB=${REDIS_DB:-0}
+      - REDIS_POOL_SIZE=${REDIS_POOL_SIZE:-1024}
+      - REDIS_MIN_IDLE_CONNS=${REDIS_MIN_IDLE_CONNS:-10}
+      - REDIS_ENABLE_TLS=${REDIS_ENABLE_TLS:-false}
+
+      # Admin account and security-sensitive fixed secrets
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@sub2api.local}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      - JWT_SECRET=${JWT_SECRET:-}
+      - JWT_EXPIRE_HOUR=${JWT_EXPIRE_HOUR:-24}
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-0}
+      - TOTP_ENCRYPTION_KEY=${TOTP_ENCRYPTION_KEY:-}
+
+      # Timezone
+      - TZ=${TZ:-Asia/Shanghai}
+
+      # Optional OAuth/update settings
+      - GEMINI_OAUTH_CLIENT_ID=${GEMINI_OAUTH_CLIENT_ID:-}
+      - GEMINI_OAUTH_CLIENT_SECRET=${GEMINI_OAUTH_CLIENT_SECRET:-}
+      - GEMINI_OAUTH_SCOPES=${GEMINI_OAUTH_SCOPES:-}
+      - GEMINI_QUOTA_POLICY=${GEMINI_QUOTA_POLICY:-}
+      - GEMINI_CLI_OAUTH_CLIENT_SECRET=${GEMINI_CLI_OAUTH_CLIENT_SECRET:-}
+      - ANTIGRAVITY_OAUTH_CLIENT_SECRET=${ANTIGRAVITY_OAUTH_CLIENT_SECRET:-}
+      - ANTIGRAVITY_USER_AGENT_VERSION=${ANTIGRAVITY_USER_AGENT_VERSION:-}
+      - UPDATE_PROXY_URL=${UPDATE_PROXY_URL:-}
+
+      # Security configuration
+      - SECURITY_URL_ALLOWLIST_ENABLED=${SECURITY_URL_ALLOWLIST_ENABLED:-false}
+      - SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP=${SECURITY_URL_ALLOWLIST_ALLOW_INSECURE_HTTP:-false}
+      - SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS=${SECURITY_URL_ALLOWLIST_ALLOW_PRIVATE_HOSTS:-false}
+      - SECURITY_URL_ALLOWLIST_UPSTREAM_HOSTS=${SECURITY_URL_ALLOWLIST_UPSTREAM_HOSTS:-}
+
+      # Request/body and HTTP/2 cleartext settings
+      - SERVER_MAX_REQUEST_BODY_SIZE=${SERVER_MAX_REQUEST_BODY_SIZE:-268435456}
+      - GATEWAY_MAX_BODY_SIZE=${GATEWAY_MAX_BODY_SIZE:-268435456}
+      - SERVER_H2C_ENABLED=${SERVER_H2C_ENABLED:-true}
+      - SERVER_H2C_MAX_CONCURRENT_STREAMS=${SERVER_H2C_MAX_CONCURRENT_STREAMS:-50}
+      - SERVER_H2C_IDLE_TIMEOUT=${SERVER_H2C_IDLE_TIMEOUT:-75}
+      - SERVER_H2C_MAX_READ_FRAME_SIZE=${SERVER_H2C_MAX_READ_FRAME_SIZE:-1048576}
+      - SERVER_H2C_MAX_UPLOAD_BUFFER_PER_CONNECTION=${SERVER_H2C_MAX_UPLOAD_BUFFER_PER_CONNECTION:-2097152}
+      - SERVER_H2C_MAX_UPLOAD_BUFFER_PER_STREAM=${SERVER_H2C_MAX_UPLOAD_BUFFER_PER_STREAM:-524288}
+
+      # Gateway scheduling and image generation settings
+      - RATE_LIMIT_OVERLOAD_COOLDOWN_MINUTES=${RATE_LIMIT_OVERLOAD_COOLDOWN_MINUTES:-10}
+      - GATEWAY_FORCE_CODEX_CLI=${GATEWAY_FORCE_CODEX_CLI:-false}
+      - GATEWAY_MAX_CONNS_PER_HOST=${GATEWAY_MAX_CONNS_PER_HOST:-2048}
+      - GATEWAY_MAX_IDLE_CONNS=${GATEWAY_MAX_IDLE_CONNS:-8192}
+      - GATEWAY_MAX_IDLE_CONNS_PER_HOST=${GATEWAY_MAX_IDLE_CONNS_PER_HOST:-4096}
+      - GATEWAY_SCHEDULING_STICKY_SESSION_MAX_WAITING=${GATEWAY_SCHEDULING_STICKY_SESSION_MAX_WAITING:-3}
+      - GATEWAY_SCHEDULING_STICKY_SESSION_WAIT_TIMEOUT=${GATEWAY_SCHEDULING_STICKY_SESSION_WAIT_TIMEOUT:-120s}
+      - GATEWAY_SCHEDULING_FALLBACK_WAIT_TIMEOUT=${GATEWAY_SCHEDULING_FALLBACK_WAIT_TIMEOUT:-30s}
+      - GATEWAY_SCHEDULING_FALLBACK_MAX_WAITING=${GATEWAY_SCHEDULING_FALLBACK_MAX_WAITING:-100}
+      - GATEWAY_SCHEDULING_LOAD_BATCH_ENABLED=${GATEWAY_SCHEDULING_LOAD_BATCH_ENABLED:-true}
+      - GATEWAY_SCHEDULING_SLOT_CLEANUP_INTERVAL=${GATEWAY_SCHEDULING_SLOT_CLEANUP_INTERVAL:-30s}
+      - GATEWAY_SCHEDULING_DB_FALLBACK_ENABLED=${GATEWAY_SCHEDULING_DB_FALLBACK_ENABLED:-true}
+      - GATEWAY_SCHEDULING_DB_FALLBACK_TIMEOUT_SECONDS=${GATEWAY_SCHEDULING_DB_FALLBACK_TIMEOUT_SECONDS:-0}
+      - GATEWAY_SCHEDULING_DB_FALLBACK_MAX_QPS=${GATEWAY_SCHEDULING_DB_FALLBACK_MAX_QPS:-0}
+      - GATEWAY_SCHEDULING_OUTBOX_POLL_INTERVAL_SECONDS=${GATEWAY_SCHEDULING_OUTBOX_POLL_INTERVAL_SECONDS:-1}
+      - GATEWAY_SCHEDULING_OUTBOX_LAG_WARN_SECONDS=${GATEWAY_SCHEDULING_OUTBOX_LAG_WARN_SECONDS:-5}
+      - GATEWAY_SCHEDULING_OUTBOX_LAG_REBUILD_SECONDS=${GATEWAY_SCHEDULING_OUTBOX_LAG_REBUILD_SECONDS:-10}
+      - GATEWAY_SCHEDULING_OUTBOX_LAG_REBUILD_FAILURES=${GATEWAY_SCHEDULING_OUTBOX_LAG_REBUILD_FAILURES:-3}
+      - GATEWAY_SCHEDULING_OUTBOX_BACKLOG_REBUILD_ROWS=${GATEWAY_SCHEDULING_OUTBOX_BACKLOG_REBUILD_ROWS:-10000}
+      - GATEWAY_SCHEDULING_FULL_REBUILD_INTERVAL_SECONDS=${GATEWAY_SCHEDULING_FULL_REBUILD_INTERVAL_SECONDS:-300}
+      - GATEWAY_IMAGE_STREAM_DATA_INTERVAL_TIMEOUT=${GATEWAY_IMAGE_STREAM_DATA_INTERVAL_TIMEOUT:-900}
+      - GATEWAY_IMAGE_STREAM_KEEPALIVE_INTERVAL=${GATEWAY_IMAGE_STREAM_KEEPALIVE_INTERVAL:-10}
+      - GATEWAY_IMAGE_CONCURRENCY_ENABLED=${GATEWAY_IMAGE_CONCURRENCY_ENABLED:-false}
+      - GATEWAY_IMAGE_CONCURRENCY_MAX_CONCURRENT_REQUESTS=${GATEWAY_IMAGE_CONCURRENCY_MAX_CONCURRENT_REQUESTS:-0}
+      - GATEWAY_IMAGE_CONCURRENCY_OVERFLOW_MODE=${GATEWAY_IMAGE_CONCURRENCY_OVERFLOW_MODE:-reject}
+      - GATEWAY_IMAGE_CONCURRENCY_WAIT_TIMEOUT_SECONDS=${GATEWAY_IMAGE_CONCURRENCY_WAIT_TIMEOUT_SECONDS:-30}
+      - GATEWAY_IMAGE_CONCURRENCY_MAX_WAITING_REQUESTS=${GATEWAY_IMAGE_CONCURRENCY_MAX_WAITING_REQUESTS:-100}
+
+      # Dashboard / ops
+      - DASHBOARD_AGGREGATION_ENABLED=${DASHBOARD_AGGREGATION_ENABLED:-true}
+      - DASHBOARD_AGGREGATION_INTERVAL_SECONDS=${DASHBOARD_AGGREGATION_INTERVAL_SECONDS:-60}
+      - DASHBOARD_AGGREGATION_LOOKBACK_SECONDS=${DASHBOARD_AGGREGATION_LOOKBACK_SECONDS:-120}
+      - DASHBOARD_AGGREGATION_BACKFILL_ENABLED=${DASHBOARD_AGGREGATION_BACKFILL_ENABLED:-false}
+      - DASHBOARD_AGGREGATION_BACKFILL_MAX_DAYS=${DASHBOARD_AGGREGATION_BACKFILL_MAX_DAYS:-31}
+      - DASHBOARD_AGGREGATION_RECOMPUTE_DAYS=${DASHBOARD_AGGREGATION_RECOMPUTE_DAYS:-2}
+      - DASHBOARD_AGGREGATION_RETENTION_USAGE_LOGS_DAYS=${DASHBOARD_AGGREGATION_RETENTION_USAGE_LOGS_DAYS:-90}
+      - DASHBOARD_AGGREGATION_RETENTION_HOURLY_DAYS=${DASHBOARD_AGGREGATION_RETENTION_HOURLY_DAYS:-180}
+      - DASHBOARD_AGGREGATION_RETENTION_DAILY_DAYS=${DASHBOARD_AGGREGATION_RETENTION_DAILY_DAYS:-730}
+      - OPS_ENABLED=${OPS_ENABLED:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - sub2api-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-T", "5", "-O", "/dev/null", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ===========================================================================
+  # PostgreSQL Database - persisted to /opt/proxy/sub2api/postgres_data
+  # ===========================================================================
+  postgres:
+    image: postgres:18.4-alpine
+    container_name: sub2api-postgres
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 100000
+        hard: 100000
+    volumes:
+      - ${DEPLOY_ROOT:-/opt/proxy/sub2api}/postgres_data:/var/lib/postgresql/data
+    environment:
+      - PGDATA=/var/lib/postgresql/data
+      - POSTGRES_USER=${POSTGRES_USER:-sub2api}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      - POSTGRES_DB=${POSTGRES_DB:-sub2api}
+      - TZ=${TZ:-Asia/Shanghai}
+    networks:
+      - sub2api-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sub2api} -d ${POSTGRES_DB:-sub2api}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ===========================================================================
+  # Redis Cache - persisted to /opt/proxy/sub2api/redis_data
+  # ===========================================================================
+  redis:
+    image: redis:8-alpine
+    container_name: sub2api-redis
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 100000
+        hard: 100000
+    volumes:
+      - ${DEPLOY_ROOT:-/opt/proxy/sub2api}/redis_data:/data
+    command:
+      - sh
+      - -c
+      - |
+        exec redis-server \
+          --save 60 1 \
+          --appendonly yes \
+          --appendfsync everysec \
+          $${REDIS_PASSWORD:+--requirepass "$$REDIS_PASSWORD"}
+    environment:
+      - TZ=${TZ:-Asia/Shanghai}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    networks:
+      - sub2api-network
+    healthcheck:
+      test: ["CMD-SHELL", "if [ -n \"$${REDIS_PASSWORD:-}\" ]; then REDISCLI_AUTH=\"$${REDIS_PASSWORD}\" redis-cli ping; else env -u REDISCLI_AUTH redis-cli ping; fi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ===========================================================================
+  # Nginx Reverse Proxy - persisted to /opt/proxy/nginx
+  # ===========================================================================
+  nginx:
+    image: nginx:1.31-alpine
+    container_name: sub2api-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_BIND_HOST:-0.0.0.0}:${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_BIND_HOST:-0.0.0.0}:${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      # Host-editable reverse-proxy config. The deploy script creates a default
+      # sub2api.conf only if it does not already exist.
+      - ${NGINX_ROOT:-/opt/proxy/nginx}/conf.d:/etc/nginx/conf.d:ro
+      # Static files and ACME HTTP-01 challenge webroot for future SSL setup.
+      - ${NGINX_ROOT:-/opt/proxy/nginx}/html:/usr/share/nginx/html
+      # Persist logs, cache/temp files, and future certificate material on host.
+      - ${NGINX_ROOT:-/opt/proxy/nginx}/logs:/var/log/nginx
+      - ${NGINX_ROOT:-/opt/proxy/nginx}/cache:/var/cache/nginx
+      - ${NGINX_ROOT:-/opt/proxy/nginx}/certs:/etc/nginx/certs:ro
+    depends_on:
+      sub2api:
+        condition: service_healthy
+    networks:
+      - sub2api-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -T 5 -O /dev/null http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  sub2api-network:
+    driver: bridge
