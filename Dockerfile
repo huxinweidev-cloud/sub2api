@@ -23,7 +23,7 @@ ARG PNPM_VERSION
 
 WORKDIR /app/frontend
 
-# Install pnpm
+# Install pnpm (pinned to v9.15.9 to match frontend/pnpm-lock.yaml v9 and keep builds reproducible)
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
 # Install dependencies first (better caching)
