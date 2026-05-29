@@ -428,6 +428,304 @@ func createAdminUser(cfg *SetupConfig) (bool, string, error) {
 	return true, decision.reason, nil
 }
 
+type setupGatewayOpenAIWSYAML struct {
+	Enabled                                    bool    `yaml:"enabled"`
+	ModeRouterV2Enabled                        bool    `yaml:"mode_router_v2_enabled"`
+	IngressModeDefault                         string  `yaml:"ingress_mode_default"`
+	OAuthEnabled                               bool    `yaml:"oauth_enabled"`
+	APIKeyEnabled                              bool    `yaml:"apikey_enabled"`
+	ForceHTTP                                  bool    `yaml:"force_http"`
+	AllowStoreRecovery                         bool    `yaml:"allow_store_recovery"`
+	IngressPreviousResponseRecoveryEnabled     bool    `yaml:"ingress_previous_response_recovery_enabled"`
+	StoreDisabledConnMode                      string  `yaml:"store_disabled_conn_mode"`
+	StoreDisabledForceNewConn                  bool    `yaml:"store_disabled_force_new_conn"`
+	PrewarmGenerateEnabled                     bool    `yaml:"prewarm_generate_enabled"`
+	ResponsesWebsockets                        bool    `yaml:"responses_websockets"`
+	ResponsesWebsocketsV2                      bool    `yaml:"responses_websockets_v2"`
+	MaxConnsPerAccount                         int     `yaml:"max_conns_per_account"`
+	MinIdlePerAccount                          int     `yaml:"min_idle_per_account"`
+	MaxIdlePerAccount                          int     `yaml:"max_idle_per_account"`
+	DynamicMaxConnsByAccountConcurrencyEnabled bool    `yaml:"dynamic_max_conns_by_account_concurrency_enabled"`
+	OAuthMaxConnsFactor                        float64 `yaml:"oauth_max_conns_factor"`
+	APIKeyMaxConnsFactor                       float64 `yaml:"apikey_max_conns_factor"`
+	DialTimeoutSeconds                         int     `yaml:"dial_timeout_seconds"`
+	ReadTimeoutSeconds                         int     `yaml:"read_timeout_seconds"`
+	WriteTimeoutSeconds                        int     `yaml:"write_timeout_seconds"`
+	PoolTargetUtilization                      float64 `yaml:"pool_target_utilization"`
+	QueueLimitPerConn                          int     `yaml:"queue_limit_per_conn"`
+	EventFlushBatchSize                        int     `yaml:"event_flush_batch_size"`
+	EventFlushIntervalMS                       int     `yaml:"event_flush_interval_ms"`
+	PrewarmCooldownMS                          int     `yaml:"prewarm_cooldown_ms"`
+	FallbackCooldownSeconds                    int     `yaml:"fallback_cooldown_seconds"`
+	RetryBackoffInitialMS                      int     `yaml:"retry_backoff_initial_ms"`
+	RetryBackoffMaxMS                          int     `yaml:"retry_backoff_max_ms"`
+	RetryJitterRatio                           float64 `yaml:"retry_jitter_ratio"`
+	RetryTotalBudgetMS                         int     `yaml:"retry_total_budget_ms"`
+	PayloadLogSampleRate                       float64 `yaml:"payload_log_sample_rate"`
+	LBTopK                                     int     `yaml:"lb_top_k"`
+	StickySessionTTLSeconds                    int     `yaml:"sticky_session_ttl_seconds"`
+	SessionHashReadOldFallback                 bool    `yaml:"session_hash_read_old_fallback"`
+	SessionHashDualWriteOld                    bool    `yaml:"session_hash_dual_write_old"`
+	MetadataBridgeEnabled                      bool    `yaml:"metadata_bridge_enabled"`
+	StickyResponseIDTTLSeconds                 int     `yaml:"sticky_response_id_ttl_seconds"`
+	StickyPreviousResponseTTLSeconds           int     `yaml:"sticky_previous_response_ttl_seconds"`
+	SchedulerScoreWeights                      struct {
+		Priority  float64 `yaml:"priority"`
+		Load      float64 `yaml:"load"`
+		Queue     float64 `yaml:"queue"`
+		ErrorRate float64 `yaml:"error_rate"`
+		TTFT      float64 `yaml:"ttft"`
+	} `yaml:"scheduler_score_weights"`
+}
+
+type setupGatewayYAML struct {
+	ResponseHeaderTimeout                int                      `yaml:"response_header_timeout"`
+	OpenAIResponseHeaderTimeout          int                      `yaml:"openai_response_header_timeout"`
+	MaxBodySize                          int64                    `yaml:"max_body_size"`
+	UpstreamResponseReadMaxBytes         int64                    `yaml:"upstream_response_read_max_bytes"`
+	ProxyProbeResponseReadMaxBytes       int64                    `yaml:"proxy_probe_response_read_max_bytes"`
+	GeminiDebugResponseHeaders           bool                     `yaml:"gemini_debug_response_headers"`
+	ConnectionPoolIsolation              string                   `yaml:"connection_pool_isolation"`
+	ForceCodexCLI                        bool                     `yaml:"force_codex_cli"`
+	CodexImageGenerationBridgeEnabled    bool                     `yaml:"codex_image_generation_bridge_enabled"`
+	ForcedCodexInstructionsTemplateFile  string                   `yaml:"forced_codex_instructions_template_file"`
+	OpenAIPassthroughAllowTimeoutHeaders bool                     `yaml:"openai_passthrough_allow_timeout_headers"`
+	OpenAIWS                             setupGatewayOpenAIWSYAML `yaml:"openai_ws"`
+	OpenAIHTTP2                          struct {
+		Enabled                   bool `yaml:"enabled"`
+		AllowProxyFallbackToHTTP1 bool `yaml:"allow_proxy_fallback_to_http1"`
+		FallbackErrorThreshold    int  `yaml:"fallback_error_threshold"`
+		FallbackWindowSeconds     int  `yaml:"fallback_window_seconds"`
+		FallbackTTLSeconds        int  `yaml:"fallback_ttl_seconds"`
+	} `yaml:"openai_http2"`
+	ImageConcurrency                   ImageConcurrencyYAML       `yaml:"image_concurrency"`
+	MaxIdleConns                       int                        `yaml:"max_idle_conns"`
+	MaxIdleConnsPerHost                int                        `yaml:"max_idle_conns_per_host"`
+	MaxConnsPerHost                    int                        `yaml:"max_conns_per_host"`
+	IdleConnTimeoutSeconds             int                        `yaml:"idle_conn_timeout_seconds"`
+	MaxUpstreamClients                 int                        `yaml:"max_upstream_clients"`
+	ClientIdleTTLSeconds               int                        `yaml:"client_idle_ttl_seconds"`
+	ConcurrencySlotTTLMinutes          int                        `yaml:"concurrency_slot_ttl_minutes"`
+	SessionIdleTimeoutMinutes          int                        `yaml:"session_idle_timeout_minutes"`
+	StreamDataIntervalTimeout          int                        `yaml:"stream_data_interval_timeout"`
+	StreamKeepaliveInterval            int                        `yaml:"stream_keepalive_interval"`
+	ImageStreamDataIntervalTimeout     int                        `yaml:"image_stream_data_interval_timeout"`
+	ImageStreamKeepaliveInterval       int                        `yaml:"image_stream_keepalive_interval"`
+	MaxLineSize                        int                        `yaml:"max_line_size"`
+	LogUpstreamErrorBody               bool                       `yaml:"log_upstream_error_body"`
+	LogUpstreamErrorBodyMaxBytes       int                        `yaml:"log_upstream_error_body_max_bytes"`
+	InjectBetaForAPIKey                bool                       `yaml:"inject_beta_for_apikey"`
+	FailoverOn400                      bool                       `yaml:"failover_on_400"`
+	MaxAccountSwitches                 int                        `yaml:"max_account_switches"`
+	MaxAccountSwitchesGemini           int                        `yaml:"max_account_switches_gemini"`
+	AntigravityFallbackCooldownMinutes int                        `yaml:"antigravity_fallback_cooldown_minutes"`
+	Scheduling                         setupGatewaySchedulingYAML `yaml:"scheduling"`
+	TLSFingerprint                     struct {
+		Enabled bool `yaml:"enabled"`
+	} `yaml:"tls_fingerprint"`
+	UsageRecord                  setupGatewayUsageRecordYAML `yaml:"usage_record"`
+	UserGroupRateCacheTTLSeconds int                         `yaml:"user_group_rate_cache_ttl_seconds"`
+	ModelsListCacheTTLSeconds    int                         `yaml:"models_list_cache_ttl_seconds"`
+	UserMessageQueue             struct {
+		Enabled                bool   `yaml:"enabled"`
+		Mode                   string `yaml:"mode,omitempty"`
+		LockTTLMs              int    `yaml:"lock_ttl_ms"`
+		WaitTimeoutMs          int    `yaml:"wait_timeout_ms"`
+		MinDelayMs             int    `yaml:"min_delay_ms"`
+		MaxDelayMs             int    `yaml:"max_delay_ms"`
+		CleanupIntervalSeconds int    `yaml:"cleanup_interval_seconds"`
+	} `yaml:"user_message_queue"`
+}
+
+type ImageConcurrencyYAML struct {
+	Enabled               bool   `yaml:"enabled"`
+	MaxConcurrentRequests int    `yaml:"max_concurrent_requests"`
+	OverflowMode          string `yaml:"overflow_mode"`
+	WaitTimeoutSeconds    int    `yaml:"wait_timeout_seconds"`
+	MaxWaitingRequests    int    `yaml:"max_waiting_requests"`
+}
+
+type setupGatewaySchedulingYAML struct {
+	StickySessionMaxWaiting    int    `yaml:"sticky_session_max_waiting"`
+	StickySessionWaitTimeout   string `yaml:"sticky_session_wait_timeout"`
+	FallbackWaitTimeout        string `yaml:"fallback_wait_timeout"`
+	FallbackMaxWaiting         int    `yaml:"fallback_max_waiting"`
+	FallbackSelectionMode      string `yaml:"fallback_selection_mode"`
+	LoadBatchEnabled           bool   `yaml:"load_batch_enabled"`
+	LoadBatchCacheTTLMS        int    `yaml:"load_batch_cache_ttl_ms"`
+	SnapshotMGetChunkSize      int    `yaml:"snapshot_mget_chunk_size"`
+	SnapshotWriteChunkSize     int    `yaml:"snapshot_write_chunk_size"`
+	SlotCleanupInterval        string `yaml:"slot_cleanup_interval"`
+	DbFallbackEnabled          bool   `yaml:"db_fallback_enabled"`
+	DbFallbackTimeoutSeconds   int    `yaml:"db_fallback_timeout_seconds"`
+	DbFallbackMaxQPS           int    `yaml:"db_fallback_max_qps"`
+	OutboxPollIntervalSeconds  int    `yaml:"outbox_poll_interval_seconds"`
+	OutboxLagWarnSeconds       int    `yaml:"outbox_lag_warn_seconds"`
+	OutboxLagRebuildSeconds    int    `yaml:"outbox_lag_rebuild_seconds"`
+	OutboxLagRebuildFailures   int    `yaml:"outbox_lag_rebuild_failures"`
+	OutboxBacklogRebuildRows   int    `yaml:"outbox_backlog_rebuild_rows"`
+	FullRebuildIntervalSeconds int    `yaml:"full_rebuild_interval_seconds"`
+}
+
+type setupGatewayUsageRecordYAML struct {
+	WorkerCount                   int    `yaml:"worker_count"`
+	QueueSize                     int    `yaml:"queue_size"`
+	TaskTimeoutSeconds            int    `yaml:"task_timeout_seconds"`
+	OverflowPolicy                string `yaml:"overflow_policy"`
+	OverflowSamplePercent         int    `yaml:"overflow_sample_percent"`
+	AutoScaleEnabled              bool   `yaml:"auto_scale_enabled"`
+	AutoScaleMinWorkers           int    `yaml:"auto_scale_min_workers"`
+	AutoScaleMaxWorkers           int    `yaml:"auto_scale_max_workers"`
+	AutoScaleUpQueuePercent       int    `yaml:"auto_scale_up_queue_percent"`
+	AutoScaleDownQueuePercent     int    `yaml:"auto_scale_down_queue_percent"`
+	AutoScaleUpStep               int    `yaml:"auto_scale_up_step"`
+	AutoScaleDownStep             int    `yaml:"auto_scale_down_step"`
+	AutoScaleCheckIntervalSeconds int    `yaml:"auto_scale_check_interval_seconds"`
+	AutoScaleCooldownSeconds      int    `yaml:"auto_scale_cooldown_seconds"`
+}
+
+func defaultSetupGatewayYAML() setupGatewayYAML {
+	gateway := setupGatewayYAML{
+		ResponseHeaderTimeout:                600,
+		OpenAIResponseHeaderTimeout:          0,
+		MaxBodySize:                          256 * 1024 * 1024,
+		UpstreamResponseReadMaxBytes:         config.DefaultUpstreamResponseReadMaxBytes,
+		ProxyProbeResponseReadMaxBytes:       1024 * 1024,
+		GeminiDebugResponseHeaders:           false,
+		ConnectionPoolIsolation:              config.ConnectionPoolIsolationAccountProxy,
+		ForceCodexCLI:                        false,
+		CodexImageGenerationBridgeEnabled:    false,
+		ForcedCodexInstructionsTemplateFile:  "",
+		OpenAIPassthroughAllowTimeoutHeaders: false,
+		ImageConcurrency: ImageConcurrencyYAML{
+			Enabled:               false,
+			MaxConcurrentRequests: 0,
+			OverflowMode:          config.ImageConcurrencyOverflowModeReject,
+			WaitTimeoutSeconds:    30,
+			MaxWaitingRequests:    100,
+		},
+		MaxIdleConns:                       2560,
+		MaxIdleConnsPerHost:                120,
+		MaxConnsPerHost:                    1024,
+		IdleConnTimeoutSeconds:             90,
+		MaxUpstreamClients:                 5000,
+		ClientIdleTTLSeconds:               900,
+		ConcurrencySlotTTLMinutes:          30,
+		SessionIdleTimeoutMinutes:          5,
+		StreamDataIntervalTimeout:          180,
+		StreamKeepaliveInterval:            10,
+		ImageStreamDataIntervalTimeout:     900,
+		ImageStreamKeepaliveInterval:       10,
+		MaxLineSize:                        500 * 1024 * 1024,
+		LogUpstreamErrorBody:               true,
+		LogUpstreamErrorBodyMaxBytes:       2048,
+		InjectBetaForAPIKey:                false,
+		FailoverOn400:                      false,
+		MaxAccountSwitches:                 10,
+		MaxAccountSwitchesGemini:           3,
+		AntigravityFallbackCooldownMinutes: 1,
+		Scheduling: setupGatewaySchedulingYAML{
+			StickySessionMaxWaiting:    3,
+			StickySessionWaitTimeout:   "120s",
+			FallbackWaitTimeout:        "30s",
+			FallbackMaxWaiting:         100,
+			FallbackSelectionMode:      "last_used",
+			LoadBatchEnabled:           true,
+			LoadBatchCacheTTLMS:        200,
+			SnapshotMGetChunkSize:      128,
+			SnapshotWriteChunkSize:     256,
+			SlotCleanupInterval:        "30s",
+			DbFallbackEnabled:          true,
+			DbFallbackTimeoutSeconds:   0,
+			DbFallbackMaxQPS:           0,
+			OutboxPollIntervalSeconds:  1,
+			OutboxLagWarnSeconds:       5,
+			OutboxLagRebuildSeconds:    10,
+			OutboxLagRebuildFailures:   3,
+			OutboxBacklogRebuildRows:   10000,
+			FullRebuildIntervalSeconds: 300,
+		},
+		UsageRecord: setupGatewayUsageRecordYAML{
+			WorkerCount:                   128,
+			QueueSize:                     16384,
+			TaskTimeoutSeconds:            5,
+			OverflowPolicy:                config.UsageRecordOverflowPolicySample,
+			OverflowSamplePercent:         10,
+			AutoScaleEnabled:              true,
+			AutoScaleMinWorkers:           128,
+			AutoScaleMaxWorkers:           512,
+			AutoScaleUpQueuePercent:       70,
+			AutoScaleDownQueuePercent:     15,
+			AutoScaleUpStep:               32,
+			AutoScaleDownStep:             16,
+			AutoScaleCheckIntervalSeconds: 3,
+			AutoScaleCooldownSeconds:      10,
+		},
+		UserGroupRateCacheTTLSeconds: 30,
+		ModelsListCacheTTLSeconds:    15,
+	}
+	gateway.OpenAIWS = setupGatewayOpenAIWSYAML{
+		Enabled:                                    true,
+		ModeRouterV2Enabled:                        false,
+		IngressModeDefault:                         "ctx_pool",
+		OAuthEnabled:                               true,
+		APIKeyEnabled:                              true,
+		ForceHTTP:                                  false,
+		AllowStoreRecovery:                         false,
+		IngressPreviousResponseRecoveryEnabled:     true,
+		StoreDisabledConnMode:                      "strict",
+		StoreDisabledForceNewConn:                  true,
+		PrewarmGenerateEnabled:                     false,
+		ResponsesWebsockets:                        false,
+		ResponsesWebsocketsV2:                      true,
+		MaxConnsPerAccount:                         128,
+		MinIdlePerAccount:                          4,
+		MaxIdlePerAccount:                          12,
+		DynamicMaxConnsByAccountConcurrencyEnabled: true,
+		OAuthMaxConnsFactor:                        1.0,
+		APIKeyMaxConnsFactor:                       1.0,
+		DialTimeoutSeconds:                         10,
+		ReadTimeoutSeconds:                         900,
+		WriteTimeoutSeconds:                        120,
+		PoolTargetUtilization:                      0.7,
+		QueueLimitPerConn:                          64,
+		EventFlushBatchSize:                        1,
+		EventFlushIntervalMS:                       10,
+		PrewarmCooldownMS:                          300,
+		FallbackCooldownSeconds:                    30,
+		RetryBackoffInitialMS:                      120,
+		RetryBackoffMaxMS:                          2000,
+		RetryJitterRatio:                           0.2,
+		RetryTotalBudgetMS:                         5000,
+		PayloadLogSampleRate:                       0.2,
+		LBTopK:                                     7,
+		StickySessionTTLSeconds:                    3600,
+		SessionHashReadOldFallback:                 true,
+		SessionHashDualWriteOld:                    true,
+		MetadataBridgeEnabled:                      true,
+		StickyResponseIDTTLSeconds:                 3600,
+		StickyPreviousResponseTTLSeconds:           3600,
+	}
+	gateway.OpenAIWS.SchedulerScoreWeights.Priority = 1.0
+	gateway.OpenAIWS.SchedulerScoreWeights.Load = 1.0
+	gateway.OpenAIWS.SchedulerScoreWeights.Queue = 0.7
+	gateway.OpenAIWS.SchedulerScoreWeights.ErrorRate = 0.8
+	gateway.OpenAIWS.SchedulerScoreWeights.TTFT = 0.5
+	gateway.OpenAIHTTP2.Enabled = true
+	gateway.OpenAIHTTP2.AllowProxyFallbackToHTTP1 = true
+	gateway.OpenAIHTTP2.FallbackErrorThreshold = 2
+	gateway.OpenAIHTTP2.FallbackWindowSeconds = 60
+	gateway.OpenAIHTTP2.FallbackTTLSeconds = 600
+	gateway.TLSFingerprint.Enabled = true
+	gateway.UserMessageQueue.Enabled = false
+	gateway.UserMessageQueue.LockTTLMs = 120000
+	gateway.UserMessageQueue.WaitTimeoutMs = 30000
+	gateway.UserMessageQueue.MinDelayMs = 200
+	gateway.UserMessageQueue.MaxDelayMs = 2000
+	gateway.UserMessageQueue.CleanupIntervalSeconds = 60
+	return gateway
+}
+
 func writeConfigFile(cfg *SetupConfig) error {
 	// Ensure timezone has a default value
 	tz := cfg.Timezone
@@ -435,7 +733,10 @@ func writeConfigFile(cfg *SetupConfig) error {
 		tz = "Asia/Shanghai"
 	}
 
-	// Prepare config for YAML (exclude sensitive data and admin config)
+	// Prepare config for YAML (exclude sensitive admin config). Gateway defaults are
+	// written explicitly so Docker/auto-setup deployments keep the same tunable
+	// gateway behavior after config.yaml exists and environment defaults no longer
+	// act as the only source of truth.
 	yamlConfig := struct {
 		Server   ServerConfig   `yaml:"server"`
 		Database DatabaseConfig `yaml:"database"`
@@ -454,7 +755,8 @@ func writeConfigFile(cfg *SetupConfig) error {
 			RequestsPerMinute int `yaml:"requests_per_minute"`
 			BurstSize         int `yaml:"burst_size"`
 		} `yaml:"rate_limit"`
-		Timezone string `yaml:"timezone"`
+		Gateway  setupGatewayYAML `yaml:"gateway"`
+		Timezone string           `yaml:"timezone"`
 	}{
 		Server:   cfg.Server,
 		Database: cfg.Database,
@@ -484,6 +786,7 @@ func writeConfigFile(cfg *SetupConfig) error {
 			RequestsPerMinute: 60,
 			BurstSize:         10,
 		},
+		Gateway:  defaultSetupGatewayYAML(),
 		Timezone: tz,
 	}
 

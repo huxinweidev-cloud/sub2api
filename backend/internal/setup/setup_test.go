@@ -83,7 +83,22 @@ func TestWriteConfigFileKeepsDefaultUserConcurrency(t *testing.T) {
 		t.Fatalf("ReadFile() error = %v", err)
 	}
 
-	if !strings.Contains(string(data), "user_concurrency: 5") {
-		t.Fatalf("config missing default user concurrency, got:\n%s", string(data))
+	contents := string(data)
+	if !strings.Contains(contents, "user_concurrency: 5") {
+		t.Fatalf("config missing default user concurrency, got:\n%s", contents)
+	}
+	for _, want := range []string{
+		"gateway:",
+		"response_header_timeout: 600",
+		"connection_pool_isolation: account_proxy",
+		"openai_ws:",
+		"responses_websockets_v2: true",
+		"scheduling:",
+		"usage_record:",
+		"user_message_queue:",
+	} {
+		if !strings.Contains(contents, want) {
+			t.Fatalf("config missing %q, got:\n%s", want, contents)
+		}
 	}
 }
