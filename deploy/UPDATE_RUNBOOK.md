@@ -1,10 +1,10 @@
 # Sub2API 标准化近无感更新上线流程
 
-本文记录 `/home/ubuntu/sub2api` 在当前 Docker Compose 部署形态下的标准更新流程。目标是：预构建、可扫描、短窗口切换、失败可快速回滚，并避免误动数据库、Redis、Nginx 和数据卷。
+本文记录 `/home/ubuntu/projects/sub2api` 在当前 Docker Compose 部署形态下的标准更新流程。目标是：预构建、可扫描、短窗口切换、失败可快速回滚，并避免误动数据库、Redis、Nginx 和数据卷。
 
 ## 适用范围
 
-- 部署目录：`/home/ubuntu/sub2api`
+- 部署目录：`/home/ubuntu/projects/sub2api`
 - 持久化目录：`/opt/proxy/sub2api`
 - Nginx 目录：`/opt/proxy/nginx`
 - Compose 文件：`deploy/docker-compose.proxy.yml`
@@ -25,7 +25,7 @@
 ## 一、上线前检查
 
 ```bash
-cd /home/ubuntu/sub2api
+cd /home/ubuntu/projects/sub2api
 
 git status --short --branch
 git log --oneline --decorate -5
@@ -69,7 +69,7 @@ docker image inspect sub2api:previous --format 'rollback {{.Id}} {{.Created}}'
 构建过程中旧服务继续运行。
 
 ```bash
-cd /home/ubuntu/sub2api
+cd /home/ubuntu/projects/sub2api
 
 DEPLOY_ROOT=/opt/proxy/sub2api \
 NGINX_ROOT=/opt/proxy/nginx \
@@ -122,7 +122,7 @@ fi
 这是唯一短暂影响线上请求的步骤。
 
 ```bash
-cd /home/ubuntu/sub2api
+cd /home/ubuntu/projects/sub2api
 
 DEPLOY_ROOT=/opt/proxy/sub2api \
 NGINX_ROOT=/opt/proxy/nginx \
@@ -206,14 +206,14 @@ docker stats --no-stream \
 如果上线后健康失败或错误持续增多，执行：
 
 ```bash
-cd /home/ubuntu/sub2api
+cd /home/ubuntu/projects/sub2api
 ./deploy/rollback-sub2api-app.sh
 ```
 
 预览模式：
 
 ```bash
-cd /home/ubuntu/sub2api
+cd /home/ubuntu/projects/sub2api
 ./deploy/rollback-sub2api-app.sh --dry-run
 ```
 

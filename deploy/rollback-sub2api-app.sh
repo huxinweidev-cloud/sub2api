@@ -9,7 +9,7 @@
 #   - Does NOT delete images, containers, volumes, or data directories.
 #
 # Typical usage after a failed deploy:
-#   cd /home/ubuntu/sub2api
+#   cd /home/ubuntu/projects/sub2api
 #   ./deploy/rollback-sub2api-app.sh
 # =============================================================================
 
